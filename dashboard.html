@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Yellowwood Bank — BI Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --navy: #0b1f3a;
+  --navy-mid: #122848;
+  --navy-lt: #1a3560;
+  --gold: #c9a84c;
+  --gold-lt: #e8cc80;
+  --white: #ffffff;
+  --slate: #8a9bb0;
+  --surface: #f0f4f8;
+  --surface2: #e2e9f0;
+  --text: #0b1f3a;
+  --text-sub: #4a607a;
+  --border: #d1dcea;
+  --green: #1e8a5e;
+  --green-bg: #d4f1e5;
+  --amber: #856404;
+  --amber-bg: #fef3cd;
+  --red: #c0392b;
+  --red-bg: #fde8e6;
+  --teal: #1a7a8a;
+  --coral: #c0553a;
+  --purple: #6b4fa0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 210px;
+  min-height: 100vh;
+  background: var(--navy);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sb-logo {
+  padding: 26px 18px 22px;
+  border-bottom: 1px solid var(--navy-lt);
+}
+
+.gold-bar {
+  width: 30px;
+  height: 3px;
+  background: var(--gold);
+  border-radius: 2px;
+  margin-bottom: 10px;
+}
+
+.sb-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: -0.3px;
+}
+
+.sb-sub {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--slate);
+  margin-top: 3px;
+  letter-spacing: 0.7px;
+}
+
+.nav-sec {
+  padding: 18px 10px 0;
+}
+
+.nav-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--slate);
+  letter-spacing: 1px;
+  padding: 0 8px;
+  margin-bottom: 5px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--slate);
+  transition: background 0.15s, color 0.15s;
+  margin-bottom: 1px;
+}
+
+.nav-item:hover {
+  background: var(--navy-lt);
+  color: var(--white);
+}
+
+.nav-item.active {
+  background: var(--gold);
+  color: var(--navy);
+  font-weight: 600;
+}
+
+.nav-item svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.sb-foot {
+  margin-top: auto;
+  padding: 18px;
+  border-top: 1px solid var(--navy-lt);
+  font-size: 10px;
+  color: var(--slate);
+  line-height: 1.6;
+}
+
+.sb-foot strong {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+/* MAIN */
+.main {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 40px;
+  overflow-y: auto;
+  height: 100vh;
+}
+
+.topbar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.topbar-meta {
+  font-size: 11px;
+  color: var(--slate);
+  margin-top: 2px;
+}
+
+.topbar-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--navy);
+  background: var(--gold);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* FILTERS */
+.filters {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.filters label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-sub);
+}
+
+.filters select {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 26px 5px 9px;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%238A9BB0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  transition: border-color 0.15s;
+}
+
+.filters select:focus {
+  border-color: var(--gold);
+}
+
+.fg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.fdiv {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}
+
+.reset-btn {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--gold);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: 5px;
+  transition: background 0.15s;
+}
+
+.reset-btn:hover {
+  background: #fdf6e3;
+}
+
+/* CONTENT */
+.content {
+  padding: 24px 28px;
+}
+
+.sec-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--slate);
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* KPIs */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.kpi {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gold);
+}
+
+.kpi.g::before {
+  background: var(--green);
+}
+
+.kpi.s::before {
+  background: var(--slate);
+}
+
+.kpi.n::before {
+  background: var(--navy);
+}
+
+.kpi.r::before {
+  background: var(--coral);
+}
+
+.kpi-lbl {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--slate);
+  margin-bottom: 7px;
+}
+
+.kpi-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.kpi-val sup {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.kpi-note {
+  margin-top: 7px;
+  font-size: 10px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.kpi-note.up {
+  color: var(--green);
+}
+
+.kpi-note.warn {
+  color: var(--amber);
+}
+
+.kpi-note.down {
+  color: var(--red);
+}
+
+/* CHART GRID */
+.cgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.cc {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px;
+}
+
+.cc.wide {
+  grid-column: 1 / -1;
+}
+
+.cc.third {
+  grid-column: span 1;
+}
+
+.cgrid3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.cc-head {
+  margin-bottom: 16px;
+}
+
+.cc-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.cc-sub {
+  font-size: 10px;
+  color: var(--slate);
+  margin-top: 2px;
+}
+
+.cw {
+  position: relative;
+  height: 220px;
+}
+
+.cw.tall {
+  height: 260px;
+}
+
+.cw.sm {
+  height: 180px;
+}
+
+/* TABLE */
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+thead th {
+  text-align: left;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--slate);
+  letter-spacing: 0.5px;
+  padding: 0 10px 9px;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--surface2);
+  color: var(--text);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover td {
+  background: var(--surface);
+}
+
+.badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.badge.approved,
+.badge.paid,
+.badge.completed {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.badge.pending,
+.badge.under.review {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.badge.rejected,
+.badge.overdue,
+.badge.failed {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.badge.eligible {
+  background: #e0f0ff;
+  color: #1a5fa8;
+}
+
+/* INSIGHTS */
+.ig-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.ig {
+  background: var(--navy);
+  border-radius: 10px;
+  padding: 22px 24px;
+  color: var(--white);
+}
+
+.ig-num {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 1px;
+  margin-bottom: 9px;
+}
+
+.ig-head {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-bottom: 9px;
+}
+
+.ig-body {
+  font-size: 11px;
+  color: var(--slate);
+  line-height: 1.7;
+}
+
+.ig-dec {
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid var(--navy-lt);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--gold-lt);
+  line-height: 1.55;
+}
+
+.dec-lbl {
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  color: var(--slate);
+  margin-bottom: 3px;
+}
+
+@media (max-width: 900px) {
+  .kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cgrid,
+  .cgrid3 {
+    grid-template-columns: 1fr;
+  }
+
+  .ig-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cc.wide {
+    grid-column: auto;
+  }
+
+  .sidebar {
+    display: none;
+  }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="gold-bar"></div>
+    <div class="sb-name">Yellowwood Bank</div>
+    <div class="sb-sub">BUSINESS INTELLIGENCE</div>
+  </div>
+  <nav class="nav-sec">
+    <div class="nav-lbl">Analytics</div>
+    <div class="nav-item active" data-target="sec-kpi" onclick="navTo(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Overview
+    </div>
+    <div class="nav-item" data-target="sec-accounts" onclick="navTo(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      Accounts
+    </div>
+    <div class="nav-item" data-target="sec-transactions" onclick="navTo(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+      Transactions
+    </div>
+    <div class="nav-item" data-target="sec-loans" onclick="navTo(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>
+      Loans
+    </div>
+    <div class="nav-item" data-target="sec-branches" onclick="navTo(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Branches
+    </div>
+  </nav>
+  <nav class="nav-sec">
+    <div class="nav-lbl">Reports</div>
+    <div class="nav-item" data-target="sec-insights" onclick="navTo(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Insights
+    </div>
+  </nav>
+  <div class="sb-foot">
+    Source: YellowwoodBankDW<br/>
+    FactTransaction · All Dims<br/>
+    <strong>Full Year 2026</strong>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Executive Dashboard</div>
+      <div class="topbar-meta">Yellowwood Bank · Data Warehouse · Full Year 2026 · 32 Customers · 8 Branches</div>
+    </div>
+    <div class="topbar-badge">IFS02B1 · Group D</div>
+  </div>
+
+  <!-- FILTERS — D(c) -->
+  <div class="filters">
+    <div class="fg">
+      <label for="fb">Branch</label>
+      <select id="fb" onchange="applyFilters()">
+        <option value="all">All Branches</option>
+        <option value="Sandton">Sandton</option>
+        <option value="Cape Town">Cape Town</option>
+        <option value="Durban">Durban</option>
+        <option value="Bloemfontein">Bloemfontein</option>
+        <option value="Pretoria">Pretoria</option>
+        <option value="Gqeberha">Gqeberha</option>
+        <option value="Polokwane">Polokwane</option>
+        <option value="Nelspruit">Nelspruit</option>
+      </select>
+    </div>
+    <div class="fdiv"></div>
+    <div class="fg">
+      <label for="ft">Account Type</label>
+      <select id="ft" onchange="applyFilters()">
+        <option value="all">All Types</option>
+        <option value="Savings">Savings</option>
+        <option value="Cheque">Cheque</option>
+        <option value="Business">Business</option>
+        <option value="Private">Private</option>
+      </select>
+    </div>
+    <div class="fdiv"></div>
+    <div class="fg">
+      <label for="fq">Quarter (DimDate)</label>
+      <select id="fq" onchange="applyFilters()">
+        <option value="all">All Quarters</option>
+        <option value="Q1">Q1 2026</option>
+        <option value="Q2">Q2 2026</option>
+        <option value="Q3">Q3 2026</option>
+        <option value="Q4">Q4 2026</option>
+      </select>
+    </div>
+    <div class="fdiv"></div>
+    <div class="fg">
+      <label for="fs">Status</label>
+      <select id="fs" onchange="applyFilters()">
+        <option value="all">All Statuses</option>
+        <option value="Approved">Approved</option>
+        <option value="Pending">Pending</option>
+      </select>
+    </div>
+    <div class="fdiv"></div>
+    <button class="reset-btn" onclick="resetFilters()">Reset</button>
+  </div>
+
+  <div class="content">
+
+    <!-- D(b) KPIs -->
+    <div id="sec-kpi" class="sec-label">Key Performance Indicators — D(b)</div>
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-lbl">Total Deposits Under Management</div>
+        <div class="kpi-val" id="kv1">R 0</div>
+        <div class="kpi-note up" id="kn1">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+          FactTransaction.AccountBalance
+        </div>
+      </div>
+      <div class="kpi g">
+        <div class="kpi-lbl">Account Approval Rate</div>
+        <div class="kpi-val" id="kv2">0<sup>%</sup></div>
+        <div class="kpi-note up" id="kn2">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+          T5 — AccountApprovedCount measure
+        </div>
+      </div>
+      <div class="kpi s">
+        <div class="kpi-lbl">Total Loan Principal</div>
+        <div class="kpi-val" id="kv3">R 0</div>
+        <div class="kpi-note up">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+          FactTransaction.LoanAmount
+        </div>
+      </div>
+      <div class="kpi n">
+        <div class="kpi-lbl">Total Portfolio Value</div>
+        <div class="kpi-val" id="kv4">R 0</div>
+        <div class="kpi-note up">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+          T4 — PortfolioValue aggregation
+        </div>
+      </div>
+    </div>
+
+    <!-- D(a) VISUALISATION 1 + 2: Account balance by branch & type -->
+    <div id="sec-accounts" class="sec-label">Account Analysis — D(a) Visualisations 1 &amp; 2</div>
+    <div class="cgrid">
+      <div class="cc">
+        <div class="cc-head">
+          <div class="cc-title">Total Account Balance by Branch</div>
+          <div class="cc-sub">DimBranch × FactTransaction.AccountBalance — 8 branches</div>
+        </div>
+        <div class="cw"><canvas id="cBranch"></canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head">
+          <div class="cc-title">Account Balance by Type</div>
+          <div class="cc-sub">DimAccount.AccountType × FactTransaction.AccountBalance</div>
+        </div>
+        <div class="cw"><canvas id="cType"></canvas></div>
+      </div>
+    </div>
+
+    <!-- D(a) VISUALISATION 3: Quarterly balance trend (DimDate roll-up) -->
+    <div class="cgrid">
+      <div class="cc wide">
+        <div class="cc-head">
+          <div class="cc-title">Account Balance by Quarter — 2026</div>
+          <div class="cc-sub">DimDate.Quarter × FactTransaction.AccountBalance — demonstrates Roll-up OLAP operation</div>
+        </div>
+        <div class="cw"><canvas id="cQuarter"></canvas></div>
+      </div>
+    </div>
+
+    <!-- D(a) VISUALISATION 4: Transaction analysis -->
+    <div id="sec-transactions" class="sec-label">Transaction Analysis — D(a) Visualisation 3 &amp; 4</div>
+    <div class="cgrid">
+      <div class="cc">
+        <div class="cc-head">
+          <div class="cc-title">Transactions by Type</div>
+          <div class="cc-sub">72 transactions from YellowwoodBankDB.TRANSACTION table</div>
+        </div>
+        <div class="cw"><canvas id="cTxType"></canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head">
+          <div class="cc-title">Transaction Status Breakdown</div>
+          <div class="cc-sub">Completed vs Pending vs Failed across all transaction types</div>
+        </div>
+        <div class="cw"><canvas id="cTxStatus"></canvas></div>
+      </div>
+    </div>
+
+    <!-- LOAN SECTION -->
+    <div id="sec-loans" class="sec-label">Loan &amp; Repayment Analysis — D(a) Visualisations 5 &amp; 6</div>
+    <div class="cgrid">
+      <div class="cc">
+        <div class="cc-head">
+          <div class="cc-title">Loan Application Status</div>
+          <div class="cc-sub">DimLoan.ApplicationStatus — 20 loan applications</div>
+        </div>
+        <div class="cw"><canvas id="cLoanStatus"></canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head">
+          <div class="cc-title">Loan Repayment Status</div>
+          <div class="cc-sub">80 repayment records — Paid vs Pending vs Overdue</div>
+        </div>
+        <div class="cw"><canvas id="cRepay"></canvas></div>
+      </div>
+    </div>
+
+    <!-- BRANCH TABLE -->
+    <div id="sec-branches" class="sec-label">Branch Performance Register</div>
+    <div class="cc" style="margin-bottom:22px">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Branch (DimBranch)</th>
+              <th style="text-align:right">Accounts</th>
+              <th style="text-align:right">Total Balance (FactTransaction)</th>
+              <th style="text-align:right">Avg Balance</th>
+              <th style="text-align:right">Approved</th>
+              <th>Market Share</th>
+            </tr>
+          </thead>
+          <tbody id="tBranch"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ACCOUNT REGISTER -->
+    <div class="cc" style="margin-bottom:22px">
+      <div class="cc-head">
+        <div class="cc-title">Account Register</div>
+        <div class="cc-sub">All accounts — filtered by selections above</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Customer (DimCustomer)</th>
+              <th>Account No. (DimAccount)</th>
+              <th>Type</th>
+              <th>Branch (DimBranch)</th>
+              <th>Quarter (DimDate)</th>
+              <th style="text-align:right">Balance (FactTransaction)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tAccounts"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- D(d) INSIGHTS -->
+    <div id="sec-insights" class="sec-label">Management Insights — D(d)</div>
+    <div class="ig-row">
+      <div class="ig">
+        <div class="ig-num">INSIGHT 01</div>
+        <div class="ig-head">Q4 holds 30.7% of total deposits despite equal account distribution</div>
+        <div class="ig-body">
+          The data warehouse roll-up query (OLAP) across DimDate reveals that Q4 2026 holds R 622,193 — the highest quarterly balance at 30.7% of total deposits. Q2 is significantly the weakest quarter at R 392,246 (19.4%). This is not driven by the number of accounts but by the higher-value accounts opened in Q4, particularly the Private and Business type accounts linked to DimBranch (Nelspruit and Polokwane), which average R 97,000+ per account.
+        </div>
+        <div class="ig-dec">
+          <div class="dec-lbl">MANAGEMENT DECISION</div>
+          Launch targeted Q2 deposit campaigns — promotional savings rates or business account incentives — to close the gap between Q2 and Q4 performance. Management could also investigate whether the Q4 spike is driven by year-end bonuses, which would be cyclical and should inform product timing strategy for 2027.
+        </div>
+      </div>
+      <div class="ig">
+        <div class="ig-num">INSIGHT 02</div>
+        <div class="ig-head">20% of loan repayments are overdue — credit risk requires immediate attention</div>
+        <div class="ig-body">
+          Out of 80 loan repayment records loaded into FactTransaction from LOAN_REPAYMENT, 20 (25%) are marked Overdue and a further 20 (25%) are Pending. Only 40 repayments (50%) are fully Paid. The overdue repayments span loans 2001–2020, with overdue payments concentrated on Card repayment method entries. This signals a systemic risk in the Card payment channel and represents potential non-performing loan exposure across the DimLoan dimension.
+        </div>
+        <div class="ig-dec">
+          <div class="dec-lbl">MANAGEMENT DECISION</div>
+          Implement automated debit order switching for Card-method repayments where arrears exceed 30 days. The credit analyst department should be notified of all Overdue statuses flagged in DimLoan for proactive customer engagement. Management should also set an NPL (non-performing loan) KPI threshold in the dashboard — e.g. overdue rate must remain below 15% — and trigger an escalation workflow when it is breached.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   DATA — sourced directly from YellowwoodBankDB_insertsUpdated_.sql
+   ETL results as they would appear in YellowwoodBankDW.FactTransaction
+   ══════════════════════════════════════════════ */
+
+const ACCOUNTS = [
+  {name:'Johnathan Marks',  num:'ACC1001',   type:'Savings',  branch:'Sandton',      q:'Q1',bal:5000.00,   loan:0,        port:0,       ins:0,       st:'Approved'},
+  {name:'Sizwe Langa',      num:'CACC1278',  type:'Cheque',   branch:'Cape Town',    q:'Q1',bal:7200.00,   loan:0,        port:152600,  ins:0,       st:'Approved'},
+  {name:'Ntombi Biyela',    num:'SACC1003',  type:'Savings',  branch:'Durban',       q:'Q1',bal:1500.00,   loan:0,        port:0,       ins:0,       st:'Approved'},
+  {name:'Lisa Taylor',      num:'BACC2345',  type:'Business', branch:'Sandton',      q:'Q1',bal:90080.00,  loan:0,        port:150700,  ins:96000,   st:'Approved'},
+  {name:'Nicolene VanWyk',  num:'SACC1005',  type:'Savings',  branch:'Cape Town',    q:'Q1',bal:2500.00,   loan:0,        port:0,       ins:0,       st:'Pending'},
+  {name:'Emma Watson',      num:'CACC1569',  type:'Cheque',   branch:'Durban',       q:'Q1',bal:8000.00,   loan:0,        port:0,       ins:5640,    st:'Approved'},
+  {name:'Tshepo More',      num:'PACC1568',  type:'Private',  branch:'Sandton',      q:'Q1',bal:62006.00,  loan:0,        port:461000,  ins:45000,   st:'Approved'},
+  {name:'Refiloe Ramohapi', num:'BACC2470',  type:'Business', branch:'Bloemfontein', q:'Q1',bal:49367.00,  loan:0,        port:250456,  ins:345000,  st:'Approved'},
+  {name:'Thandi Mokoena',   num:'YWB30001',  type:'Savings',  branch:'Sandton',      q:'Q1',bal:1500.00,   loan:15000,    port:25000,   ins:450,     st:'Approved'},
+  {name:'Kabelo Dlamini',   num:'YWB30002',  type:'Cheque',   branch:'Cape Town',    q:'Q1',bal:7887.43,   loan:28753.29, port:42391.63,ins:733.17,  st:'Approved'},
+  {name:'Ayesha Patel',     num:'YWB30003',  type:'Business', branch:'Durban',       q:'Q1',bal:14274.86,  loan:42506.58, port:59783.26,ins:1016.34, st:'Approved'},
+  {name:'Lerato Nkosi',     num:'YWB30004',  type:'Private',  branch:'Bloemfontein', q:'Q2',bal:20662.29,  loan:56259.87, port:77174.89,ins:1299.51, st:'Pending'},
+  {name:'Musa Khumalo',     num:'YWB30005',  type:'Savings',  branch:'Pretoria',     q:'Q2',bal:27049.72,  loan:70013.16, port:94566.52,ins:1582.68, st:'Approved'},
+  {name:'Zanele Maseko',    num:'YWB30006',  type:'Cheque',   branch:'Gqeberha',     q:'Q2',bal:33437.15,  loan:83766.45, port:111958.15,ins:1865.85,st:'Approved'},
+  {name:'Sipho Ndlovu',     num:'YWB30007',  type:'Business', branch:'Polokwane',    q:'Q3',bal:39824.58,  loan:97519.74, port:129349.78,ins:2149.02,st:'Approved'},
+  {name:'Amara Naidoo',     num:'YWB30008',  type:'Private',  branch:'Nelspruit',    q:'Q3',bal:46212.01,  loan:111273.03,port:146741.41,ins:2432.19,st:'Pending'},
+  {name:'Naledi Molefe',    num:'YWB30009',  type:'Savings',  branch:'Sandton',      q:'Q3',bal:52599.44,  loan:125026.32,port:164133.04,ins:2715.36,st:'Approved'},
+  {name:'Bongani Mthembu',  num:'YWB30010',  type:'Cheque',   branch:'Cape Town',    q:'Q4',bal:58986.87,  loan:138779.61,port:181524.67,ins:2998.53,st:'Approved'},
+  {name:'Palesa Pillay',    num:'YWB30011',  type:'Business', branch:'Durban',       q:'Q4',bal:65374.30,  loan:152532.90,port:198916.30,ins:3281.70,st:'Approved'},
+  {name:'Karabo Mahlangu',  num:'YWB30012',  type:'Private',  branch:'Bloemfontein', q:'Q4',bal:71761.73,  loan:166286.19,port:216307.93,ins:3564.87,st:'Pending'},
+  {name:'Ayanda Zuma',      num:'YWB30013',  type:'Savings',  branch:'Pretoria',     q:'Q1',bal:78149.16,  loan:180039.48,port:233699.56,ins:3848.04,st:'Approved'},
+  {name:'Lwazi Cele',       num:'YWB30014',  type:'Cheque',   branch:'Gqeberha',     q:'Q1',bal:84536.59,  loan:193792.77,port:251091.19,ins:4131.21,st:'Approved'},
+  {name:'Nomsa Mokoena',    num:'YWB30015',  type:'Business', branch:'Polokwane',    q:'Q1',bal:90924.02,  loan:207546.06,port:268482.82,ins:4414.38,st:'Approved'},
+  {name:'Neo Mabena',       num:'YWB30016',  type:'Private',  branch:'Nelspruit',    q:'Q2',bal:97311.45,  loan:221299.35,port:285874.45,ins:4697.55,st:'Pending'},
+  {name:'Keitumetse Molefe',num:'YWB30017',  type:'Savings',  branch:'Sandton',      q:'Q2',bal:103698.88, loan:235052.64,port:303266.08,ins:4980.72,st:'Approved'},
+  {name:'Sibusiso Radebe',  num:'YWB30018',  type:'Cheque',   branch:'Cape Town',    q:'Q2',bal:110086.31, loan:248805.93,port:320657.71,ins:5263.89,st:'Approved'},
+  {name:'Onalenna Mokoena', num:'YWB30019',  type:'Business', branch:'Durban',       q:'Q3',bal:116473.74, loan:262559.22,port:338049.34,ins:5547.06,st:'Approved'},
+  {name:'Mariam Ismail',    num:'YWB30020',  type:'Private',  branch:'Bloemfontein', q:'Q3',bal:122861.17, loan:276312.51,port:355440.97,ins:5830.23,st:'Pending'},
+  {name:'Tebogo Mokoena',   num:'YWB30021',  type:'Savings',  branch:'Pretoria',     q:'Q3',bal:129248.60, loan:0,        port:372832.60,ins:6113.40,st:'Approved'},
+  {name:'Nandi Sithole',    num:'YWB30022',  type:'Cheque',   branch:'Gqeberha',     q:'Q4',bal:135636.03, loan:0,        port:390224.23,ins:6396.57,st:'Approved'},
+  {name:'Vuyo Mbeki',       num:'YWB30023',  type:'Business', branch:'Polokwane',    q:'Q4',bal:142023.46, loan:0,        port:407615.86,ins:6679.74,st:'Approved'},
+  {name:'Kagiso Mahlangu',  num:'YWB30024',  type:'Private',  branch:'Nelspruit',    q:'Q4',bal:148410.89, loan:0,        port:425007.49,ins:6962.91,st:'Pending'},
+];
+
+const BRANCHES_ALL = ['Sandton','Cape Town','Durban','Bloemfontein','Pretoria','Gqeberha','Polokwane','Nelspruit'];
+const QUARTER_ORDER = ['Q1','Q2','Q3','Q4'];
+const COLORS = ['#C9A84C','#1A7A8A','#C0553A','#1E8A5E','#6B4FA0','#8A9BB0','#0B1F3A','#E8CC80'];
+
+// Loan application data from DimLoan
+const LOAN_STATUS = {Approved:15, Pending:3, Rejected:2};
+// Repayment data from LOAN_REPAYMENT (80 records: 4 per loan × 20 loans)
+const REPAY_STATUS = {Paid:40, Pending:20, Overdue:20};
+// Transaction data (72 records)
+const TX_TYPE   = {Transfer:18, Deposit:18, Payment:18, Withdrawal:18};
+const TX_STATUS = {Completed:44, Pending:16, Failed:12};
+
+let filtered = [...ACCOUNTS];
+let charts = {};
+
+/* ── FILTERS ── */
+function applyFilters(){
+  const b=document.getElementById('fb').value;
+  const t=document.getElementById('ft').value;
+  const q=document.getElementById('fq').value;
+  const s=document.getElementById('fs').value;
+  filtered=ACCOUNTS.filter(a=>
+    (b==='all'||a.branch===b)&&
+    (t==='all'||a.type===t)&&
+    (q==='all'||a.q===q)&&
+    (s==='all'||a.st===s)
+  );
+  updateKPIs();renderBranchTable();renderAccountTable();rebuildCharts();
+}
+function resetFilters(){
+  ['fb','ft','fq','fs'].forEach(id=>document.getElementById(id).value='all');
+  applyFilters();
+}
+
+/* ── FORMAT ── */
+function fR(n){return n>=1e6?'R '+(n/1e6).toFixed(2)+'M':n>=1e3?'R '+(n/1000).toFixed(0)+'K':'R '+n.toLocaleString('en-ZA')}
+function fRFull(n){return'R '+n.toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+/* ── KPIs ── */
+function updateKPIs(){
+  const bal  = filtered.reduce((s,a)=>s+a.bal,0);
+  const loan = filtered.reduce((s,a)=>s+a.loan,0);
+  const port = filtered.reduce((s,a)=>s+a.port,0);
+  const app  = filtered.filter(a=>a.st==='Approved').length;
+  const rate = filtered.length?((app/filtered.length)*100).toFixed(1):0;
+  document.getElementById('kv1').textContent=fR(bal);
+  document.getElementById('kv2').innerHTML=rate+'<sup>%</sup>';
+  document.getElementById('kv3').textContent=fR(loan);
+  document.getElementById('kv4').textContent=fR(port);
+  document.getElementById('kn1').innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>${filtered.length} accounts · FactTransaction`;
+  document.getElementById('kn2').innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>${app} of ${filtered.length} · T5 measure`;
+}
+
+/* ── BRANCH TABLE ── */
+function renderBranchTable(){
+  const totalBal=filtered.reduce((s,a)=>s+a.bal,0)||1;
+  const byBranch={};
+  filtered.forEach(a=>{
+    if(!byBranch[a.branch])byBranch[a.branch]={bal:0,cnt:0,app:0};
+    byBranch[a.branch].bal+=a.bal;
+    byBranch[a.branch].cnt++;
+    if(a.st==='Approved')byBranch[a.branch].app++;
+  });
+  const rows=Object.entries(byBranch).sort((a,b)=>b[1].bal-a[1].bal);
+  document.getElementById('tBranch').innerHTML=rows.map(([br,v])=>{
+    const share=((v.bal/totalBal)*100).toFixed(1);
+    const barW=Math.round((v.bal/totalBal)*100);
+    return`<tr>
+      <td style="font-weight:500">${br}</td>
+      <td style="text-align:right">${v.cnt}</td>
+      <td style="text-align:right;font-weight:600">${fRFull(v.bal)}</td>
+      <td style="text-align:right">${fRFull(v.bal/v.cnt)}</td>
+      <td style="text-align:right"><span class="badge approved">${v.app}/${v.cnt}</span></td>
+      <td style="min-width:100px"><div style="background:var(--surface2);border-radius:3px;height:6px;width:100%"><div style="background:var(--gold);width:${barW}%;height:6px;border-radius:3px"></div></div><span style="font-size:9px;color:var(--slate)">${share}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── ACCOUNT TABLE ── */
+function renderAccountTable(){
+  document.getElementById('tAccounts').innerHTML=filtered.map(a=>`
+    <tr>
+      <td style="font-weight:500">${a.name}</td>
+      <td style="font-family:monospace;font-size:10px;color:var(--text-sub)">${a.num}</td>
+      <td>${a.type}</td>
+      <td>${a.branch}</td>
+      <td><span class="badge eligible">${a.q}</span></td>
+      <td style="font-weight:600;text-align:right">${fRFull(a.bal)}</td>
+      <td><span class="badge ${a.st.toLowerCase()}">${a.st}</span></td>
+    </tr>`).join('');
+}
+
+/* ── CHARTS ── */
+const BASE={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+const TICK={color:'#4A607A',font:{family:'Inter',size:10}};
+const GRID={color:'#E2E9F0'};
+function kill(){Object.values(charts).forEach(c=>c&&c.destroy());charts={}}
+
+function buildBranch(){
+  const data=BRANCHES_ALL.map(b=>filtered.filter(a=>a.branch===b).reduce((s,a)=>s+a.bal,0));
+  const labels=BRANCHES_ALL.map(b=>b.replace(' Branch',''));
+  charts.branch=new Chart(document.getElementById('cBranch'),{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:COLORS,borderRadius:5,borderSkipped:false}]},
+    options:{...BASE,scales:{x:{ticks:TICK,grid:{display:false}},y:{ticks:{...TICK,callback:v=>fR(v)},grid:GRID}}}
+  });
+}
+
+function buildType() {
+  const types = ['Business', 'Private', 'Cheque', 'Savings'];
+  const data = types.map((t) =>
+    filtered.filter((a) => a.type === t).reduce((s, a) => s + a.bal, 0)
+  );
+
+  charts.type = new Chart(document.getElementById('cType'), {
+    type: 'doughnut',
+    data: {
+      labels: types,
+      datasets: [
+        {
+          data,
+          backgroundColor: ['#C9A84C', '#6B4FA0', '#8A9BB0', '#1A7A8A'],
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 6,
+        },
+      ],
+    },
+    options: {
+      ...BASE,
+      cutout: '60%',
+      plugins: {
+        legend: {
+          display: true,
+          position: 'right',
+          labels: {
+            color: '#4A607A',
+            font: { family: 'Inter', size: 11 },
+            boxWidth: 11,
+            padding: 12,
+          },
+        },
+      },
+    },
+  });
+}
+
+function buildQuarter() {
+  const data = QUARTER_ORDER.map(
+    (q) => filtered.filter((a) => a.q === q).reduce((s, a) => s + a.bal, 0)
+  );
+
+  charts.quarter = new Chart(document.getElementById('cQuarter'), {
+    type: 'bar',
+    data: {
+      labels: QUARTER_ORDER.map((q) => q + ' 2026'),
+      datasets: [
+        {
+          data,
+          backgroundColor: ['#C9A84C', '#1A7A8A', '#C0553A', '#1E8A5E'],
+          borderRadius: 6,
+          borderSkipped: false,
+          label: 'Account Balance',
+        },
+      ],
+    },
+    options: {
+      ...BASE,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => 'R ' + ctx.raw.toLocaleString('en-ZA'),
+          },
+        },
+      },
+      scales: {
+        x: { ticks: TICK, grid: { display: false } },
+        y: {
+          ticks: { ...TICK, callback: (v) => fR(v) },
+          grid: GRID,
+        },
+      },
+    },
+  });
+}
+
+function buildTxType() {
+  const labels = Object.keys(TX_TYPE);
+  const data = Object.values(TX_TYPE);
+
+  charts.txtype = new Chart(document.getElementById('cTxType'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: ['#C9A84C', '#1A7A8A', '#6B4FA0', '#1E8A5E'],
+          borderRadius: 5,
+          borderSkipped: false,
+        },
+      ],
+    },
+    options: {
+      ...BASE,
+      scales: {
+        x: { ticks: TICK, grid: { display: false } },
+        y: {
+          ticks: { ...TICK, stepSize: 6 },
+          grid: GRID,
+        },
+      },
+    },
+  });
+}
+
+function buildTxStatus() {
+  charts.txstatus = new Chart(document.getElementById('cTxStatus'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(TX_STATUS),
+      datasets: [
+        {
+          data: Object.values(TX_STATUS),
+          backgroundColor: ['#1E8A5E', '#C9A84C', '#C0553A'],
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 6,
+        },
+      ],
+    },
+    options: {
+      ...BASE,
+      cutout: '55%',
+      plugins: {
+        legend: {
+          display: true,
+          position: 'right',
+          labels: {
+            color: '#4A607A',
+            font: { family: 'Inter', size: 11 },
+            boxWidth: 11,
+            padding: 12,
+          },
+        },
+      },
+    },
+  });
+}
+
+function buildLoanStatus() {
+  charts.loan = new Chart(document.getElementById('cLoanStatus'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(LOAN_STATUS),
+      datasets: [
+        {
+          data: Object.values(LOAN_STATUS),
+          backgroundColor: ['#1E8A5E', '#C9A84C', '#C0553A'],
+          borderRadius: 5,
+          borderSkipped: false,
+        },
+      ],
+    },
+    options: {
+      ...BASE,
+      scales: {
+        x: { ticks: TICK, grid: { display: false } },
+        y: {
+          ticks: { ...TICK, stepSize: 5 },
+          grid: GRID,
+          min: 0,
+        },
+      },
+    },
+  });
+}
+
+function buildRepay() {
+  charts.repay = new Chart(document.getElementById('cRepay'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(REPAY_STATUS),
+      datasets: [
+        {
+          data: Object.values(REPAY_STATUS),
+          backgroundColor: ['#1E8A5E', '#C9A84C', '#C0392B'],
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 6,
+        },
+      ],
+    },
+    options: {
+      ...BASE,
+      cutout: '55%',
+      plugins: {
+        legend: {
+          display: true,
+          position: 'right',
+          labels: {
+            color: '#4A607A',
+            font: { family: 'Inter', size: 11 },
+            boxWidth: 11,
+            padding: 12,
+          },
+        },
+      },
+    },
+  });
+}
+
+function rebuildCharts() {
+  kill();
+  buildBranch();
+  buildType();
+  buildQuarter();
+  buildTxType();
+  buildTxStatus();
+  buildLoanStatus();
+  buildRepay();
+}
+
+/* ── SIDEBAR NAV ── */
+const MAIN = () => document.querySelector('.main');
+
+function navTo(el) {
+  const target = document.getElementById(el.getAttribute('data-target'));
+  if (!target) return;
+
+  document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
+  el.classList.add('active');
+
+  const main = MAIN();
+  const top =
+    target.getBoundingClientRect().top -
+    main.getBoundingClientRect().top +
+    main.scrollTop -
+    16;
+
+  main.scrollTo({ top, behavior: 'smooth' });
+}
+
+(function () {
+  const secs = ['sec-kpi', 'sec-accounts', 'sec-transactions', 'sec-loans', 'sec-branches', 'sec-insights'];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    MAIN().addEventListener('scroll', () => {
+      const mainTop = MAIN().getBoundingClientRect().top;
+      let cur = secs[0];
+
+      secs.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top - mainTop <= 100) {
+          cur = id;
+        }
+      });
+
+      document
+        .querySelectorAll('.nav-item')
+        .forEach((n) => n.classList.toggle('active', n.getAttribute('data-target') === cur));
+    });
+  });
+})();
+
+/* ── INIT ── */
+applyFilters();
+</script>
+</body>
+</html>
