@@ -155,15 +155,22 @@ function calculate(filters, data = DATA) {
   const loanCohort = cohort(data.loans).map(statusAsOf).filter(loan => filters.loanStatus === 'all' || loan.status === filters.loanStatus);
   const applications = loanCohort.filter(loan => inPeriod(loan.date));
   const approvals = loanCohort.filter(loan => loan.status === 'Approved' && inPeriod(loan.approvalDate));
+  const applicationMetrics = rows => ({
+    approvedApplications: rows.filter(row => row.status === 'Approved').length,
+    rejectedApplications: rows.filter(row => row.status === 'Rejected').length,
+    pendingApplications: rows.filter(row => row.status === 'Pending').length,
+    requestedAmount: sum(rows, 'amount')
+  });
   const months = reportingMonths(filters.start, filters.end);
   const monthlyLoans = months.map(month => {
     const submitted = applications.filter(loan => loan.date.startsWith(month));
     const approved = approvals.filter(loan => loan.approvalDate.startsWith(month));
-    return { month, applications: submitted.length, approvals: approved.length, approvedAmount: sum(approved, 'approvedAmount') };
+    return { month, applications: submitted.length, ...applicationMetrics(submitted), approvals: approved.length, approvedAmount: sum(approved, 'approvedAmount') };
   });
   const branches = (filters.branch === 'all' ? BRANCHES : [filters.branch]).map(branch => {
     const belongs = loan => customerMap.get(loan.customerId).branch === branch;
-    return { branch, applications: applications.filter(belongs).length, share: ratio(applications.filter(belongs).length, applications.length), approvedAmount: sum(approvals.filter(belongs), 'approvedAmount') };
+    const submitted = applications.filter(belongs);
+    return { branch, applications: submitted.length, ...applicationMetrics(submitted), share: ratio(submitted.length, applications.length), approvedAmount: sum(approvals.filter(belongs), 'approvedAmount') };
   }).sort((a, b) => b.applications - a.applications);
   const snapshots = cohort(data.snapshots);
   const dates = [...new Set(data.snapshots.map(row => row.date))].filter(inPeriod).sort();
@@ -174,6 +181,16 @@ function calculate(filters, data = DATA) {
     const rows = currentBalances.filter(row => customerMap.get(row.customerId).type === type);
     return { type, accounts: rows.length, average: average(rows, 'accountBalance') };
   }).sort((a, b) => (b.average ?? -1) - (a.average ?? -1));
+  const comparisonCustomers = new Map(data.customers.filter(customer => types.includes(customer.type)).map(customer => [customer.id, customer]));
+  const comparisonGroups = new Map();
+  data.snapshots.filter(row => row.date === snapshotDate && comparisonCustomers.has(row.customerId)).forEach(row => {
+    const customer = comparisonCustomers.get(row.customerId);
+    const key = `${customer.branch}:${customer.type}`;
+    if (!comparisonGroups.has(key)) comparisonGroups.set(key, []);
+    comparisonGroups.get(key).push(row);
+  });
+  const largestBranchAverage = Math.max(0, ...Array.from(comparisonGroups.values(), rows => average(rows, 'accountBalance')));
+  const balanceAxisMax = largestBranchAverage ? Math.ceil(largestBranchAverage / 50000) * 50000 : null;
   const quarters = [...new Set(months.map(month => quarterOf(`${month}-01`)))];
   const quarterlyBalances = quarters.flatMap(quarter => {
     const endpoint = dates.filter(date => quarterOf(date) === quarter).at(-1);
@@ -211,7 +228,7 @@ function calculate(filters, data = DATA) {
   ).sort((a, b) => filters.customerSort === 'name' ? a.name.localeCompare(b.name) || a.id.localeCompare(b.id) : filters.customerSort === 'products' ? b.products.length - a.products.length || b.combinedValue - a.combinedValue : b.combinedValue - a.combinedValue);
   const decided = claims.filter(claim => claim.status !== 'Pending');
   return {
-    customers, monthlyLoans, branches, balances, quarterlyBalances, quarters, snapshotDate, policyRows, officerRows, sarRows, relationships,
+    customers, monthlyLoans, branches, balances, balanceAxisMax, quarterlyBalances, quarters, snapshotDate, policyRows, officerRows, sarRows, relationships,
     approvedValue: sum(approvals, 'approvedAmount'), approvalCount: approvals.length, applicationCount: applications.length,
     averageBalance: average(currentBalances, 'accountBalance'), accountCount: currentBalances.length,
     claimRate: ratio(decided.filter(claim => claim.status === 'Approved').length, decided.length), claimCount: claims.length, decidedCount: decided.length,
@@ -255,9 +272,9 @@ function managementInsights(model, filters) {
 function exportRows(section, model) {
   switch (section) {
     case 'loans': return [
-      ['Group', 'Period / branch', 'Applications', 'Approval count', 'Approved principal ZAR', 'Application share %'],
-      ...model.monthlyLoans.map(row => ['Monthly', row.month, row.applications, row.approvals, row.approvedAmount, null]),
-      ...model.branches.map(row => ['Branch', row.branch, row.applications, null, row.approvedAmount, row.share])
+      ['Group', 'Period / branch', 'Applications', 'Approvals by approval date', 'Approved principal ZAR', 'Application share %', 'Approved applications by submission date', 'Rejected applications', 'Pending applications', 'Requested amount ZAR'],
+      ...model.monthlyLoans.map(row => ['Monthly', row.month, row.applications, row.approvals, row.approvedAmount, null, row.approvedApplications, row.rejectedApplications, row.pendingApplications, row.requestedAmount]),
+      ...model.branches.map(row => ['Branch', row.branch, row.applications, null, row.approvedAmount, row.share, row.approvedApplications, row.rejectedApplications, row.pendingApplications, row.requestedAmount])
     ];
     case 'accounts': return [['Quarter', 'Snapshot date', 'Partial quarter', 'Account type', 'Accounts', 'Average ZAR', 'Prior quarter average ZAR', 'QoQ %'], ...model.quarterlyBalances.map(row => [row.quarter, row.date, row.partial, row.type, row.accounts, row.average, row.previous, row.change])];
     case 'claims': return [
@@ -333,7 +350,7 @@ function mountDashboard() {
   function render() {
     $('scope').textContent = `${dateLabel(activeFilters.start)} - ${dateLabel(activeFilters.end)}  |  ${activeFilters.branch === 'all' ? 'All branches' : activeFilters.branch}  |  ${activeFilters.accountType === 'all' ? 'All account types' : activeFilters.accountType}  |  ${model.customers.length} customers in cohort`;
     $('asOf').textContent = dateLabel(activeFilters.end);
-    $('balanceDate').textContent = model.snapshotDate ? `Snapshot: ${dateLabel(model.snapshotDate)} / ${model.accountCount} accounts` : 'No month-end snapshot in the selected window';
+    $('balanceDate').textContent = `${activeFilters.branch === 'all' ? 'All branches' : activeFilters.branch} / ${model.snapshotDate ? `Snapshot: ${dateLabel(model.snapshotDate)} / ${model.accountCount} accounts` : 'No month-end snapshot in the selected window'}. Chart scale is consistent across branches for this date and account-type selection.`;
     const cards = [
       ['Approved loan principal', shortMoney(model.approvedValue), `${model.approvalCount} approvals / ${model.applicationCount} submitted applications. Lending status filter applied.`],
       ['Average account balance', shortMoney(model.averageBalance), `${model.accountCount} accounts / latest selected month-end.`],
@@ -356,8 +373,15 @@ function mountDashboard() {
         <p>${escapeHTML(insight.evidence)}</p>
         <div class="management-decision"><div class="eyebrow">SUPPORTING MANAGEMENT DECISION</div><p>${escapeHTML(insight.decision)}</p></div>
       </article>`).join('');
-    table('loanMonthsTable', model.monthlyLoans.map(row => [monthLabel(row.month), row.applications, row.approvals, money(row.approvedAmount)]), 4);
-    table('loanBranchesTable', model.branches.map(row => [row.branch, row.applications, percent(row.share), money(row.approvedAmount)]), 4);
+    const requestedView = activeFilters.loanStatus === 'Rejected' || activeFilters.loanStatus === 'Pending';
+    $('loanMonthlyTitle').textContent = requestedView ? `Monthly ${activeFilters.loanStatus.toLowerCase()} requested amount` : 'Monthly approved loan amount';
+    $('loanMonthlySubtitle').textContent = requestedView
+      ? 'Requested principal by submission date; these applications are not approved loans.'
+      : 'Approved principal by approval date. Application status counts below use submission dates.';
+    $('loanMonthly').setAttribute('aria-label', `${$('loanMonthlyTitle').textContent}; exact amounts and status counts in the monthly register below`);
+    table('loanMonthsTable', model.monthlyLoans.map(row => [monthLabel(row.month), row.applications, row.approvedApplications, row.rejectedApplications, row.pendingApplications, money(row.requestedAmount), row.approvals, money(row.approvedAmount)]), 8);
+    table('loanBranchesTable', model.branches.map(row => [row.branch, row.applications, row.approvedApplications, row.rejectedApplications, row.pendingApplications, percent(row.share), money(row.requestedAmount), money(row.approvedAmount)]), 8);
+    table('accountAverageTable', model.balances.map(row => [row.type, row.accounts, money(row.average)]), 3);
     table('accountTable', model.quarterlyBalances.map(row => [
       `${quarterLabel(row.quarter)}<small>${row.date ? dateLabel(row.date) : 'No snapshot'}${row.partial ? ' / partial' : ''}</small>`,
       row.type, row.accounts, money(row.average), money(row.previous),
@@ -367,9 +391,13 @@ function mountDashboard() {
     table('officerTable', model.officerRows.map(row => [row.officer, row.claims, money(row.total), money(row.average)]), 4);
     table('sarTable', model.sarRows.map(row => [quarterLabel(row.quarter), row.raised, row.resolved, row.open, percent(row.rate), percent(row.within24)]), 6);
     renderRelationships();
-    chart('loanMonthly', model.monthlyLoans.map(row => monthLabel(row.month)), [bar('Approved principal', model.monthlyLoans.map(row => row.approvedAmount), COLORS[0])], { scales: { y: moneyScale } });
-    chart('loanBranch', model.branches.map(row => row.branch), [bar('Applications', model.branches.map(row => row.applications), COLORS, 'count')], { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } });
-    chart('accountAverage', model.balances.map(row => row.type), [bar('Average balance', model.balances.map(row => row.average), COLORS)], { scales: { y: moneyScale } });
+    chart('loanMonthly', model.monthlyLoans.map(row => monthLabel(row.month)), [bar(requestedView ? `${activeFilters.loanStatus} requested principal` : 'Approved principal', model.monthlyLoans.map(row => requestedView ? row.requestedAmount : row.approvedAmount), requestedView ? activeFilters.loanStatus === 'Rejected' ? COLORS[4] : COLORS[0] : COLORS[0])], { scales: { y: moneyScale } });
+    chart('loanBranch', model.branches.map(row => row.branch), [
+      ['Approved', 'approvedApplications', COLORS[1]], ['Rejected', 'rejectedApplications', COLORS[4]], ['Pending', 'pendingApplications', COLORS[0]]
+    ].filter(([status]) => activeFilters.loanStatus === 'all' || activeFilters.loanStatus === status)
+      .map(([status, field, color]) => bar(`${status} applications`, model.branches.map(row => row[field]), color, 'count')),
+    { indexAxis: 'y', scales: { x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }, y: { stacked: true } } });
+    chart('accountAverage', model.balances.map(row => row.type), [bar('Average balance', model.balances.map(row => row.average), COLORS)], { scales: { y: { ...moneyScale, ...(model.balanceAxisMax === null ? {} : { max: model.balanceAxisMax }) } } });
     chart('accountQuarter', model.quarters.map(quarterLabel), (activeFilters.accountType === 'all' ? TYPES : [activeFilters.accountType]).map((type, index) => ({
       label: type, type: 'line', data: model.quarters.map(quarter => model.quarterlyBalances.find(row => row.quarter === quarter && row.type === type).average),
       borderColor: COLORS[index], backgroundColor: COLORS[index], tension: .2, pointRadius: 4, format: 'money'

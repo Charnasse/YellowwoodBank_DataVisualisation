@@ -56,6 +56,30 @@ test('lending monthly and branch totals reconcile to source approval and submiss
   assert.ok(result.branches[0].applications >= result.branches.at(-1).applications);
 });
 
+test('all lending statuses have visible counts and requested amounts that reconcile to source data', () => {
+  const all = calculate(filters());
+  let statusTotal = 0;
+  for (const [status, field] of [['Approved', 'approvedApplications'], ['Rejected', 'rejectedApplications'], ['Pending', 'pendingApplications']]) {
+    const result = calculate(filters({ loanStatus: status }));
+    const source = DATA.loans.filter(row => (row.decisionDate > DEFAULT_FILTERS.end ? 'Pending' : row.status) === status);
+    assert.ok(result.applicationCount > 0);
+    assert.equal(result.applicationCount, source.length);
+    assert.equal(sum(result.monthlyLoans, field), source.length);
+    assert.equal(sum(result.branches, field), source.length);
+    assert.equal(sum(all.monthlyLoans, field), source.length);
+    assert.equal(sum(result.monthlyLoans, 'requestedAmount'), sum(source, 'amount'));
+    assert.equal(sum(result.branches, 'requestedAmount'), sum(source, 'amount'));
+    assert.ok(sum(result.monthlyLoans, 'requestedAmount') > 0);
+    if (status !== 'Approved') assert.equal(result.approvedValue, 0);
+    const exported = exportRows('loans', result);
+    assert.equal(exported[0][9], 'Requested amount ZAR');
+    assert.equal(exported[1][9], result.monthlyLoans[0].requestedAmount);
+    statusTotal += source.length;
+  }
+  assert.equal(statusTotal, all.applicationCount);
+  for (const row of all.monthlyLoans) assert.equal(row.approvedApplications + row.rejectedApplications + row.pendingApplications, row.applications);
+});
+
 test('branch, account segment and period meaningfully filter every product domain', () => {
   const all = calculate(filters());
   const sandton = calculate(filters({ branch: 'Sandton' }));
@@ -87,6 +111,26 @@ test('account average is a stock at latest month-end; QoQ uses prior full quarte
   }
   const early = calculate(filters(quarterRange('2025-Q4')));
   assert.ok(early.quarterlyBalances.every(row => row.previous !== null));
+});
+
+test('each branch has source-derived account-type averages on a shared comparison scale', () => {
+  const all = calculate(filters());
+  for (const branch of new Set(DATA.customers.map(row => row.branch))) {
+    const result = calculate(filters({ branch }));
+    assert.equal(result.balanceAxisMax, all.balanceAxisMax);
+    for (const row of result.balances) {
+      const ids = new Set(DATA.customers.filter(customer => customer.branch === branch && customer.type === row.type).map(customer => customer.id));
+      const source = DATA.snapshots.filter(snapshot => ids.has(snapshot.customerId) && snapshot.date === result.snapshotDate);
+      assert.equal(row.accounts, 10);
+      close(row.average, sum(source, 'accountBalance') / source.length);
+      assert.notEqual(row.average, all.balances.find(balance => balance.type === row.type).average);
+      assert.ok(row.average <= result.balanceAxisMax);
+    }
+  }
+  const sandton = calculate(filters({ branch: 'Sandton', accountType: 'Private', ...quarterRange('2026-Q2') }));
+  const capeTown = calculate(filters({ branch: 'Cape Town', accountType: 'Private', ...quarterRange('2026-Q2') }));
+  assert.equal(sandton.balanceAxisMax, capeTown.balanceAxisMax);
+  assert.notEqual(sandton.balances[0].average, capeTown.balances[0].average);
 });
 
 test('partial quarters are labeled; windows without snapshots do not fabricate balances', () => {
@@ -141,7 +185,7 @@ test('SAR overall resolution is not the 24-hour rate; as-of status does not look
 test('approvals in a different month from submission follow approval date', () => {
   const fixture = {
     customers: [{ id: 'C1', name: 'Test', branch: 'Sandton', type: 'Savings' }], snapshots: [], sars: [], claims: [],
-    loans: [{ customerId: 'C1', date: '2025-12-29', approvalDate: '2026-01-04', status: 'Approved', approvedAmount: 12345 }]
+    loans: [{ customerId: 'C1', date: '2025-12-29', approvalDate: '2026-01-04', status: 'Approved', amount: 12345, approvedAmount: 12345 }]
   };
   const result = calculate(filters({ start: '2026-01-01', end: '2026-01-31' }), fixture);
   assert.equal(result.applicationCount, 0);
@@ -189,11 +233,13 @@ test('different flow windows ending at the same date preserve the same stock bal
 test('loan and claim decisions after the reporting cutoff are pending, not approved', () => {
   const fixture = {
     customers: [{ id: 'C1', name: 'Test', branch: 'Sandton', type: 'Savings' }], snapshots: [], sars: [],
-    loans: [{ customerId: 'C1', date: '2026-01-28', decisionDate: '2026-02-03', approvalDate: '2026-02-03', status: 'Approved', approvedAmount: 10000 }],
+    loans: [{ customerId: 'C1', date: '2026-01-28', decisionDate: '2026-02-03', approvalDate: '2026-02-03', status: 'Approved', amount: 10000, approvedAmount: 10000 }],
     claims: [{ customerId: 'C1', date: '2026-01-28', decisionDate: '2026-02-04', status: 'Approved', policy: 'Motor', officer: 'A. Dube', amount: 5000 }]
   };
   const result = calculate(filters({ start: '2026-01-01', end: '2026-01-31', loanStatus: 'Pending' }), fixture);
   assert.equal(result.applicationCount, 1);
+  assert.equal(result.monthlyLoans[0].pendingApplications, 1);
+  assert.equal(result.monthlyLoans[0].requestedAmount, 10000);
   assert.equal(result.approvedValue, 0);
   assert.equal(result.pendingClaims, 1);
   assert.equal(result.claimRate, null);
